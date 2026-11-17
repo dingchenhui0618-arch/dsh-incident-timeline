@@ -207,8 +207,9 @@ test('window parsing reports each invalid input and accepts a full range', () =>
 })
 
 test('normalizeConfig defaults under DSH home', () => {
-  const config = normalizeConfig({ dshHome: 'C:\\Users\\demo\\.dsh' })
-  assert.equal(config.sessionsRoot, 'C:\\Users\\demo\\.dsh\\sessions')
+  const home = join(tmpdir(), 'dsh-home-' + Date.now())
+  const config = normalizeConfig({ dshHome: home })
+  assert.equal(config.sessionsRoot, join(home, 'sessions'))
   assert.match(config.dbPath, /incident-timeline[\\/]projection\.db$/)
   assert.equal(config.autoSync, true)
   assert.equal(config.prune, false)
