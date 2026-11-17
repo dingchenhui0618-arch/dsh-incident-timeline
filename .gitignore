@@ -1,0 +1,27 @@
+node_modules/
+*.log
+
+# 本机凭据一律不入库
+.env
+.env.*
+.npmrc
+*.pem
+*.key
+*.p12
+*.pfx
+
+# 本机投影库、演示夹具与生成物
+.incident-timeline/
+docs/.demo-data/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+coverage/
+tmp/
+
+# 操作系统与编辑器杂物
+.DS_Store
+Thumbs.db
+*.tmp
