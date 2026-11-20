@@ -96,7 +96,7 @@ Markdown 列固定为：
 
 ## HTTP 路由
 
-单条 fenced 路由，前缀 `/dsh-incident-timeline`：
+单条 fenced 路由，前缀 `/dsh-incident-timeline`。它和 DSH 自己的 `/api` 走同一道浏览器信任栅栏（`ctx.connection.requestRejection`）：`Host` / `Origin` 不是这台 DSH 的返回 **403**，没有浏览器会话 cookie 返回 **401**——浏览器里随便打开的一个网页调不动它。
 
 | 方法 | 路径 | 用途 |
 |---|---|---|
@@ -105,10 +105,11 @@ Markdown 列固定为：
 | `GET` | `/export?format=md\|json&...` | 导出；`download=1` 带附件头 |
 | `GET` | `/preview` | 无插件的独立预览页（与面板同一份 CSS/接口） |
 
-示例：
+示例（`dsh-auth-*` cookie 从浏览器 DevTools → Application → Cookies 里复制，有效期 30 天）：
 
 ```sh
-curl 'http://127.0.0.1:3080/dsh-incident-timeline/export?format=md&since=2026-11-16T00:00:00Z'
+curl -b 'dsh-auth-XXXXXXXXXXXXXXXX=v1.…' \
+  'http://127.0.0.1:3080/dsh-incident-timeline/export?format=md&since=2026-11-16T00:00:00Z'
 ```
 
 `/state` 的 `stats` 是**整个时间窗**的计数；`events` 受 `limit` 限制，所以列表截断时总数仍然正确。

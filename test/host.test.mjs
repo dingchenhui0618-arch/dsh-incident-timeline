@@ -1,9 +1,9 @@
 import { strict as assert } from 'node:assert'
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import { apply, createHandler, normalizeConfig, windowFromSearch } from '../src/host.js'
+import { apply, createHandler, inject, normalizeConfig, windowFromSearch } from '../src/host.js'
 import { incidentScenario, rejectionOnlyScenario, writeSession } from '../test-fixtures/helpers.mjs'
 
 function tempDir() {
@@ -31,15 +31,28 @@ function makeCtx(options) {
       }
     },
   }
+  // The connection service is what fences the route: 403 for an untrusted
+  // Host/Origin, 401 without the browser session cookie, undefined to admit.
+  const connection = {
+    rejection: settings.rejection,
+    requests: [],
+    requestRejection(req) {
+      this.requests.push(req)
+      return this.rejection
+    },
+  }
   const ctx = {
     webServer: webServer,
+    get(serviceName) {
+      return serviceName === 'connection' ? connection : undefined
+    },
     effect(fn) {
       const dispose = fn()
       disposers.push(typeof dispose === 'function' ? dispose : function () {})
       return dispose
     },
   }
-  return { ctx, routes, dispose() { for (const fn of disposers.splice(0)) fn() } }
+  return { ctx, connection, routes, dispose() { for (const fn of disposers.splice(0)) fn() } }
 }
 
 function fakeResponse() {
@@ -85,6 +98,29 @@ test('state route syncs on first read and reports all three labels', async () =>
 
   setup.dispose()
   assert.equal(setup.routes.length, 0, 'route removed on unload')
+})
+
+test('the route is fenced by the connection service, so a foreign page cannot read it', async () => {
+  assert.deepEqual(inject.slice().sort(), ['connection', 'webServer'])
+
+  const f = fixture()
+  const unauth = makeCtx({ rejection: 401 })
+  apply(unauth.ctx, { sessionsRoot: f.root, dataDir: f.dataDir })
+
+  const refused = await call(unauth.routes[0], 'GET', '/dsh-incident-timeline/state')
+  assert.equal(refused.status, 401)
+  assert.equal(refused.json.ok, false)
+  assert.equal(refused.json.error, 'unauthorized')
+  assert.equal(unauth.connection.requests.length, 1, 'the fence saw the request')
+  assert.equal(existsSync(join(f.dataDir, 'projection.db')), false, 'no projection was opened')
+  unauth.dispose()
+
+  const foreign = makeCtx({ rejection: 403 })
+  apply(foreign.ctx, { sessionsRoot: f.root, dataDir: f.dataDir })
+  const forbidden = await call(foreign.routes[0], 'GET', '/dsh-incident-timeline/export?format=md')
+  assert.equal(forbidden.status, 403)
+  assert.equal(forbidden.json.error, 'forbidden')
+  foreign.dispose()
 })
 
 test('window filters are validated rather than silently ignored', async () => {

@@ -1,6 +1,6 @@
 {
   "name": "dsh-incident-timeline",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "engines": {
     "node": ">=22.16.0",
     "dsh": ">=0.2.1-rc.2 <0.3.0"
